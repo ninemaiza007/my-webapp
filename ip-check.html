@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 IP Check</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: #1e293b;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        #loader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.6s ease-out;
+        }
+
+        .loader-content {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-back {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            color: #475569;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .btn-back:hover {
+            background: #f1f5f9;
+            transform: translateX(-5px);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.03);
+            border-color: var(--primary);
+            box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.1);
+        }
+
+        .stat-card.has-error:hover {
+            border-color: var(--danger);
+            box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.1);
+        }
+
+        .label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #64748b;
+            font-size: 0.75rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card:hover .label i {
+            color: var(--primary);
+            transform: rotate(-10deg) scale(1.2);
+            transition: all 0.3s ease;
+        }
+
+        .value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0f172a;
+            word-break: break-all;
+        }
+
+        .value.error { color: var(--danger); font-weight: 600; }
+
+        #map-container {
+            height: 450px;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+            border: 6px solid white;
+        }
+
+        #map { height: 100%; width: 100%; z-index: 1; }
+    </style>
+</head>
+<body>
+
+<div id="loader">
+    <div class="loader-content">
+        <div class="spinner"></div>
+        <p style="font-weight: 600; color: #64748b; margin-top: 10px;">กำลังวิเคราะห์เครือข่าย...</p>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="top-bar">
+        <button class="btn-back" onclick="window.history.back()">
+            <i data-lucide="arrow-left"></i> ย้อนกลับ
+        </button>
+        <h2 style="margin:0; font-weight: 700;">Network Identity</h2>
+        <div style="width: 100px;"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="label"><i data-lucide="hash"></i> IPv4 Address</div>
+            <div id="ipv4" class="value">Loading...</div>
+        </div>
+        <div class="stat-card" id="card-v6">
+            <div class="label"><i data-lucide="zap"></i> IPv6 Address</div>
+            <div id="ipv6" class="value">Loading...</div>
+        </div>
+        <div class="stat-card">
+            <div class="label"><i data-lucide="map-pin"></i> Location</div>
+            <div id="location" class="value">Loading...</div>
+        </div>
+        <div class="stat-card">
+            <div class="label"><i data-lucide="building"></i> ISP Provider</div>
+            <div id="isp" class="value">Loading...</div>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    lucide.createIcons();
+
+    let map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
+    
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    async function init() {
+        try {
+            // 1. ตรวจสอบ IPv6 (API เจาะจง v6)
+            fetch('https://api6.ipify.org?format=json')
+                .then(r => r.json())
+                .then(d => {
+                    document.getElementById('ipv6').innerText = d.ip;
+                })
+                .catch(() => {
+                    const el = document.getElementById('ipv6');
+                    el.innerText = "Not Detected";
+                    el.classList.add('error');
+                    document.getElementById('card-v6').classList.add('has-error');
+                });
+
+            // 2. ดึง IPv4 (API เจาะจง v4 เท่านั้น)
+            const ipv4Res = await fetch('https://api.ipify.org?format=json');
+            const ipv4Data = await ipv4Res.json();
+            const ipv4 = ipv4Data.ip;
+            document.getElementById('ipv4').innerText = ipv4;
+
+            // 3. ดึงข้อมูลตำแหน่งโดยอิงจาก IPv4 ที่ได้
+            const res = await fetch(`https://ipapi.co/${ipv4}/json/`);
+            const data = await res.json();
+
+            document.getElementById('location').innerText = `${data.city || 'Unknown'}, ${data.country_name || ''}`;
+            document.getElementById('isp').innerText = data.org || "Unknown ISP";
+
+            // อัปเดตแผนที่
+            const lat = data.latitude || 0;
+            const lon = data.longitude || 0;
+            map.setView([lat, lon], 14);
+
+            const customIcon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 12px rgba(37,99,235,0.6);"></div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+
+            L.marker([lat, lon], { icon: customIcon }).addTo(map)
+                .bindPopup(`<b>ตำแหน่งของคุณ</b><br>${data.city || 'Your Location'}`).openPopup();
+
+            // ปิด Loader
+            const loader = document.getElementById('loader');
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 600);
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('ipv4').innerText = "Error";
+            const loader = document.getElementById('loader');
+            loader.innerHTML = "<div class='loader-content'><h3>ขออภัย เกิดข้อผิดพลาดในการโหลดข้อมูล</h3></div>";
+        }
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
