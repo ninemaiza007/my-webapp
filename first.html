@@ -1,182 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎆Fireworks</title>
-    <style>
-        body {
-            background-color: #ffffff;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aptos Clock + Fireworks + Draw</title>
 
-        /* กล่องนาฬิกาและวันที่ */
-        .fixed-clock {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            background-color: rgba(255, 255, 255, 0.9);
-            color: #222;
-            padding: 12px 25px;
-            border-radius: 15px;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            z-index: 1000; 
-            text-align: center;
-            backdrop-filter: blur(8px);
-            min-width: 120px;
-        }
+<style>
+body {
+    background:#ffffff;
+    margin:0;
+    font-family:'Aptos','Segoe UI',system-ui,-apple-system,sans-serif;
+    overflow:hidden;
+}
 
-        #clock {
-            font-size: 1.8rem; /* ขยายขนาดนาฬิกาเล็กน้อย */
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            line-height: 1.1;
-        }
+/* กล่องนาฬิกา */
+.fixed-clock {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    background: rgba(255,255,255,0.9);
+    padding: 12px 25px;
+    border-radius: 15px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    z-index:1000;
+}
+#clock { font-size:1.8rem; font-weight:600; }
+#date { font-size:0.9rem; color:#666; }
 
-        #date {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #666;
-            margin-top: 4px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase; /* ทำให้ชื่อเดือนเป็นตัวพิมพ์ใหญ่ดู Minimal */
-        }
+/* Canvas พลุ */
+#fireworks-canvas {
+    position: fixed;
+    top:0;
+    left:0;
+    z-index:-2;
+}
 
-        #fireworks-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; 
-            z-index: -1; 
-        }
+/* Canvas วาด */
+#draw-canvas {
+    position: fixed;
+    top:0;
+    left:0;
+    z-index:1;
+    cursor:crosshair;
+}
 
-        .content { 
-            position: relative;
-            padding: 60px 50px; 
-            z-index: 1;
-        }
-    </style>
+/* กล่องเลือกสี */
+.color-panel {
+    position: fixed;
+    bottom:20px;
+    left:20px;
+    background:rgba(255,255,255,0.95);
+    padding:15px;
+    border-radius:15px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    z-index:1000;
+    font-size:14px;
+}
+.color-panel input {
+    width:60px;
+}
+button {
+    margin-top:8px;
+    padding:6px 10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+</style>
 </head>
+
 <body>
 
-    <canvas id="fireworks-canvas"></canvas>
+<canvas id="fireworks-canvas"></canvas>
+<canvas id="draw-canvas"></canvas>
 
-    <div class="fixed-clock">
-        <div id="clock">00:00:00</div>
-        <div id="date">01-JAN-26</div>
-    </div>
+<div class="fixed-clock">
+    <div id="clock"></div>
+    <div id="date"></div>
+</div>
 
-    <div class="content">
-        <h1>ยินดีต้อนรับ</h1>
-        <p>นาฬิกาจะจุดพลุฉลองทุกๆ ต้นชั่วโมง</p>
-    </div>
+<div class="color-panel">
+    <div>R: <input type="number" id="r" min="0" max="255" value="0"></div>
+    <div>G: <input type="number" id="g" min="0" max="255" value="0"></div>
+    <div>B: <input type="number" id="b" min="0" max="255" value="0"></div>
+    <button onclick="clearCanvas()">ล้างภาพ</button>
+</div>
 
-    <script>
-        const canvas = document.getElementById('fireworks-canvas');
-        const ctx = canvas.getContext('2d');
-        const clockElement = document.getElementById('clock');
-        const dateElement = document.getElementById('date');
-        let particles = [];
+<script>
+/* ---------- ตั้งค่า Canvas ---------- */
+const fwCanvas = document.getElementById('fireworks-canvas');
+const fwCtx = fwCanvas.getContext('2d');
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
+const drawCanvas = document.getElementById('draw-canvas');
+const drawCtx = drawCanvas.getContext('2d');
 
-        // --- ระบบพลุ ---
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.velocity = {
-                    x: (Math.random() - 0.5) * 8,
-                    y: (Math.random() - 0.5) * 8
-                };
-                this.alpha = 1;
-                this.friction = 0.95;
-                this.gravity = 0.05;
-            }
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.alpha;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.restore();
-            }
-            update() {
-                this.velocity.x *= this.friction;
-                this.velocity.y *= this.friction;
-                this.velocity.y += this.gravity;
-                this.x += this.velocity.x;
-                this.y += this.velocity.y;
-                this.alpha -= 0.01;
-            }
-        }
+function resize(){
+    fwCanvas.width = drawCanvas.width = window.innerWidth;
+    fwCanvas.height = drawCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-        function createFirework() {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * (canvas.height * 0.4) + (canvas.height * 0.1);
-            const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
-            for (let i = 0; i < 40; i++) {
-                particles.push(new Particle(x, y, color));
-            }
-        }
+/* ---------- ระบบวาด ---------- */
+let drawing = false;
 
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update();
-                particles[i].draw();
-                if (particles[i].alpha <= 0) particles.splice(i, 1);
-            }
-            requestAnimationFrame(animate);
-        }
-        animate();
+function getColor(){
+    const r = document.getElementById('r').value;
+    const g = document.getElementById('g').value;
+    const b = document.getElementById('b').value;
+    return `rgb(${r},${g},${b})`;
+}
 
-        // --- ระบบนาฬิกาและวันที่ ---
-        function updateClock() {
-            const now = new Date();
-            
-            // อัปเดตนาฬิกา
-            const h = now.getHours().toString().padStart(2, '0');
-            const m = now.getMinutes().toString().padStart(2, '0');
-            const s = now.getSeconds().toString().padStart(2, '0');
-            clockElement.textContent = `${h}:${m}:${s}`;
+drawCanvas.addEventListener('mousedown', (e)=>{
+    drawing = true;
+    drawCtx.beginPath();
+    drawCtx.moveTo(e.clientX, e.clientY);
+});
+drawCanvas.addEventListener('mousemove', (e)=>{
+    if(!drawing) return;
+    drawCtx.strokeStyle = getColor();
+    drawCtx.lineWidth = 3;
+    drawCtx.lineCap = "round";
+    drawCtx.lineTo(e.clientX, e.clientY);
+    drawCtx.stroke();
+});
+drawCanvas.addEventListener('mouseup', ()=> drawing=false);
+drawCanvas.addEventListener('mouseleave', ()=> drawing=false);
 
-            // อัปเดตวันที่ format dd-mmm-yy
-            const day = now.getDate().toString().padStart(2, '0');
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const mmm = months[now.getMonth()];
-            const yy = now.getFullYear().toString().slice(-2);
-            dateElement.textContent = `${day}-${mmm}-${yy}`;
+function clearCanvas(){
+    drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+}
 
-            // จุดพลุต้นชั่วโมง
-            if (m === "00" && s === "00") {
-                for(let i=0; i<8; i++) setTimeout(createFirework, i * 400);
-            }
-        }
+/* ---------- ระบบพลุ ---------- */
+let particles = [];
 
-        setInterval(updateClock, 1000);
-        updateClock();
+class Particle{
+    constructor(x,y,color){
+        this.x=x;
+        this.y=y;
+        this.color=color;
+        this.velocity={
+            x:(Math.random()-0.5)*8,
+            y:(Math.random()-0.5)*8
+        };
+        this.alpha=1;
+        this.friction=0.95;
+        this.gravity=0.05;
+    }
+    draw(){
+        fwCtx.save();
+        fwCtx.globalAlpha=this.alpha;
+        fwCtx.beginPath();
+        fwCtx.arc(this.x,this.y,2,0,Math.PI*2);
+        fwCtx.fillStyle=this.color;
+        fwCtx.fill();
+        fwCtx.restore();
+    }
+    update(){
+        this.velocity.x*=this.friction;
+        this.velocity.y*=this.friction;
+        this.velocity.y+=this.gravity;
+        this.x+=this.velocity.x;
+        this.y+=this.velocity.y;
+        this.alpha-=0.01;
+    }
+}
 
-        // คลิกเพื่อจุดพลุ
-        window.addEventListener('mousedown', (e) => {
-            const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
-            for (let i = 0; i < 30; i++) particles.push(new Particle(e.clientX, e.clientY, color));
-        });
-    </script>
+function createFirework(){
+    const x=Math.random()*fwCanvas.width;
+    const y=Math.random()*fwCanvas.height*0.5;
+    const color=`hsl(${Math.random()*360},70%,50%)`;
+    for(let i=0;i<40;i++){
+        particles.push(new Particle(x,y,color));
+    }
+}
+
+function animate(){
+    fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
+    for(let i=particles.length-1;i>=0;i--){
+        particles[i].update();
+        particles[i].draw();
+        if(particles[i].alpha<=0) particles.splice(i,1);
+    }
+    requestAnimationFrame(animate);
+}
+animate();
+
+/* ---------- ระบบนาฬิกา ---------- */
+const clockEl=document.getElementById('clock');
+const dateEl=document.getElementById('date');
+
+function updateClock(){
+    const now=new Date();
+    const h=String(now.getHours()).padStart(2,'0');
+    const m=String(now.getMinutes()).padStart(2,'0');
+    const s=String(now.getSeconds()).padStart(2,'0');
+    clockEl.textContent=`${h}:${m}:${s}`;
+
+    const day=String(now.getDate()).padStart(2,'0');
+    const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mmm=months[now.getMonth()];
+    const yy=now.getFullYear().toString().slice(-2);
+    dateEl.textContent=`${day}-${mmm}-${yy}`;
+
+    if(m==="00" && s==="00"){
+        for(let i=0;i<8;i++) setTimeout(createFirework,i*400);
+    }
+}
+
+setInterval(updateClock,1000);
+updateClock();
+</script>
+
 </body>
 </html>
