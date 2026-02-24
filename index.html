@@ -1,178 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Global Time Experience</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
 *{box-sizing:border-box;}
 
 body{
-    margin:0;
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-family:'Segoe UI',system-ui,sans-serif;
-    overflow:hidden;
-    background-size:cover;
-    background-position:center;
-    transition:background 1s ease, color 0.5s ease;
+margin:0;
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+background:#ffffff;
+transition:background .8s ease,color .6s ease;
+overflow:hidden;
 }
 
+/* Overlay แสงตามช่วงเวลา */
 body::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    backdrop-filter:blur(20px);
-    background:rgba(255,255,255,0.6);
-    transition:background 0.5s ease;
-    z-index:0;
+content:"";
+position:absolute;
+inset:0;
+transition:.8s ease;
+z-index:0;
+pointer-events:none;
 }
 
-body.dark::before{
-    background:rgba(0,0,0,0.65);
+/* กลางคืน */
+body.night{
+background:#0f172a;
+color:#ffffff;
 }
 
-#fireworks-canvas{
-    position:absolute;
-    inset:0;
-    pointer-events:none;
-    z-index:1;
+/* เช้า */
+body.dawn{
+background:linear-gradient(135deg,#fff7ed,#ffedd5);
 }
 
-.glass-panel{
-    position:relative;
-    z-index:5;
-    padding:60px 80px;
-    border-radius:30px;
-    text-align:center;
-    backdrop-filter:blur(25px);
-    background:rgba(255,255,255,0.3);
-    box-shadow:0 20px 50px rgba(0,0,0,0.15);
-    transition:background 0.5s ease;
+/* กลางวัน */
+body.day{
+background:#ffffff;
 }
 
-body.dark .glass-panel{
-    background:rgba(0,0,0,0.3);
+/* เย็น */
+body.sunset{
+background:linear-gradient(135deg,#ffe4e6,#fecdd3);
 }
 
+.glass{
+position:relative;
+z-index:5;
+text-align:center;
+padding:60px 80px;
+border-radius:28px;
+background:rgba(255,255,255,.7);
+backdrop-filter:blur(20px);
+box-shadow:0 25px 60px rgba(0,0,0,.08);
+transition:.5s;
+}
+
+body.night .glass{
+background:rgba(30,41,59,.6);
+box-shadow:0 25px 60px rgba(0,0,0,.4);
+}
+
+/* นาฬิกา FIX ไม่ขยับ */
 #big-clock{
-    font-size:5rem;
-    font-weight:600;
-    letter-spacing:-2px;
-    margin-bottom:10px;
+font-family:'Inter',monospace;
+font-variant-numeric:tabular-nums;
+font-feature-settings:"tnum";
+font-size:5rem;
+font-weight:600;
+letter-spacing:2px;
+width:10ch;
+text-align:center;
+margin-bottom:15px;
 }
 
 #location{
-    font-size:1rem;
-    margin-bottom:30px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:10px;
+display:flex;
+justify-content:center;
+align-items:center;
+gap:10px;
+margin-bottom:30px;
+font-size:.95rem;
+opacity:.8;
 }
 
 .flag{
-    width:28px;
-    height:20px;
-    object-fit:cover;
-    border-radius:3px;
+width:30px;
+height:20px;
+border-radius:3px;
 }
 
 .buttons{
-    display:flex;
-    gap:20px;
-    justify-content:center;
-    flex-wrap:wrap;
+display:flex;
+gap:20px;
+justify-content:center;
+flex-wrap:wrap;
 }
 
 .btn{
-    padding:12px 28px;
-    border-radius:50px;
-    text-decoration:none;
-    font-size:0.95rem;
-    font-weight:500;
-    transition:0.3s ease;
+padding:12px 30px;
+border-radius:50px;
+text-decoration:none;
+font-weight:500;
+background:#000;
+color:#fff;
+transition:.3s;
 }
 
-.primary{
-    background:#000;
-    color:#fff;
+.btn:hover{
+transform:translateY(-3px);
+opacity:.85;
 }
 
-.secondary{
-    background:rgba(255,255,255,0.4);
-    color:#000;
-}
-
-body.dark .primary{
-    background:#fff;
-    color:#000;
-}
-
-body.dark .secondary{
-    background:rgba(255,255,255,0.2);
-    color:#fff;
+body.night .btn{
+background:#ffffff;
+color:#000;
 }
 
 @media(max-width:600px){
-    #big-clock{font-size:3rem;}
-    .glass-panel{padding:40px 30px;}
+#big-clock{font-size:3rem;}
+.glass{padding:40px 25px;}
 }
 </style>
 </head>
 <body>
 
-<canvas id="fireworks-canvas"></canvas>
-
-<div class="glass-panel">
-    <div id="big-clock">00:00:00</div>
-    <div id="location">Detecting location...</div>
-
-    <div class="buttons">
-        <a href="first.html" class="btn primary">Enter</a>
-        <a href="ip-check.html" class="btn secondary">IP Check</a>
-    </div>
+<div class="glass">
+<div id="big-clock">00:00:00</div>
+<div id="location">Detecting location...</div>
+<div class="buttons">
+<a href="first.html" class="btn">ENTRY</a>
+<a href="ip-check.html" class="btn">IP Check GO GO!!</a>
+</div>
 </div>
 
 <script>
-/* -------- FIREWORK SYSTEM -------- */
-const canvas=document.getElementById('fireworks-canvas');
-const ctx=canvas.getContext('2d');
-let particles=[];
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
-addEventListener('resize',resize);resize();
-
-class Particle{
-constructor(x,y,color){
-this.x=x;this.y=y;this.color=color;
-this.velocity={x:(Math.random()-0.5)*10,y:(Math.random()-0.5)*10};
-this.alpha=1;this.friction=0.95;}
-draw(){ctx.globalAlpha=this.alpha;
-ctx.beginPath();ctx.arc(this.x,this.y,3,0,Math.PI*2);
-ctx.fillStyle=this.color;ctx.fill();}
-update(){this.velocity.x*=this.friction;
-this.velocity.y*=this.friction;
-this.x+=this.velocity.x;this.y+=this.velocity.y;
-this.alpha-=0.015;}
-}
-function triggerFirework(){
-const x=Math.random()*canvas.width;
-const y=Math.random()*canvas.height*0.6;
-const color=`hsl(${Math.random()*360},70%,50%)`;
-for(let i=0;i<40;i++){particles.push(new Particle(x,y,color));}}
-function animate(){
-ctx.clearRect(0,0,canvas.width,canvas.height);
-particles.forEach((p,i)=>{
-if(p.alpha<=0){particles.splice(i,1);}
-else{p.update();p.draw();}});
-requestAnimationFrame(animate);}
-animate();
-
-/* -------- IP + TIMEZONE -------- */
-
 let userTimeZone=Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 async function detectIP(){
@@ -180,33 +151,43 @@ try{
 const res=await fetch("https://ipapi.co/json/");
 const data=await res.json();
 
-if(data.timezone){
-userTimeZone=data.timezone;
-}
+if(data.timezone){userTimeZone=data.timezone;}
 
-const locationDiv=document.getElementById("location");
-locationDiv.innerHTML=`
+document.getElementById("location").innerHTML=`
 <img class="flag" src="https://flagcdn.com/w40/${data.country_code.toLowerCase()}.png">
-<span>${data.country_name} • ${data.timezone}</span>
+<span>${data.city}, ${data.country_name} • ${data.timezone}</span>
 `;
-
-/* เปลี่ยนพื้นหลัง landmark */
-document.body.style.backgroundImage=
-`url('https://source.unsplash.com/1600x900/?${data.country_name},landmark')`;
 
 }catch{
 document.getElementById("location").textContent="Local Time";
 }
 }
 
-/* -------- CLOCK -------- */
+function applySunTheme(hour){
+document.body.classList.remove("night","dawn","day","sunset");
+
+if(hour>=5 && hour<8){
+document.body.classList.add("dawn");
+}
+else if(hour>=8 && hour<17){
+document.body.classList.add("day");
+}
+else if(hour>=17 && hour<19){
+document.body.classList.add("sunset");
+}
+else{
+document.body.classList.add("night");
+}
+}
 
 function updateClock(){
 const now=new Date();
 const formatter=new Intl.DateTimeFormat('en-GB',{
 timeZone:userTimeZone,
 hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+
 const parts=formatter.formatToParts(now);
+
 const hour=parseInt(parts.find(p=>p.type==="hour").value);
 const minute=parseInt(parts.find(p=>p.type==="minute").value);
 const second=parseInt(parts.find(p=>p.type==="second").value);
@@ -214,25 +195,13 @@ const second=parseInt(parts.find(p=>p.type==="second").value);
 document.getElementById("big-clock").textContent=
 `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}:${second.toString().padStart(2,'0')}`;
 
-/* 🌌 Auto Dark Mode (18:00–05:59) */
-if(hour>=18||hour<6){
-document.body.classList.add("dark");
-}else{
-document.body.classList.remove("dark");
-}
-
-/* 🎆 Firework at top hour */
-if(minute===0 && second===0){
-for(let i=0;i<8;i++){setTimeout(triggerFirework,i*400);}
-}
+applySunTheme(hour);
 }
 
 detectIP().then(()=>{
 setInterval(updateClock,1000);
 updateClock();
 });
-
-addEventListener("click",triggerFirework);
 </script>
 
 </body>
