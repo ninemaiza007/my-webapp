@@ -1,218 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aptos Clock + Fireworks + Draw</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aptos Clock & Stopwatch</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
 
-<style>
-body {
-    background:#ffffff;
-    margin:0;
-    font-family:'Aptos','Segoe UI',system-ui,-apple-system,sans-serif;
-    overflow:hidden;
-}
+        /* กล่องนาฬิกาหลัก */
+        .fixed-clock {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #222;
+            padding: 12px 25px;
+            border-radius: 15px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            z-index: 1000; 
+            text-align: center;
+            backdrop-filter: blur(8px);
+            min-width: 120px;
+        }
 
-/* กล่องนาฬิกา */
-.fixed-clock {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    background: rgba(255,255,255,0.9);
-    padding: 12px 25px;
-    border-radius: 15px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    text-align: center;
-    z-index:1000;
-}
-#clock { font-size:1.8rem; font-weight:600; }
-#date { font-size:0.9rem; color:#666; }
+        #clock {
+            font-size: 1.8rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
 
-/* Canvas พลุ */
-#fireworks-canvas {
-    position: fixed;
-    top:0;
-    left:0;
-    z-index:-2;
-}
+        #date {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #666;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
 
-/* Canvas วาด */
-#draw-canvas {
-    position: fixed;
-    top:0;
-    left:0;
-    z-index:1;
-    cursor:crosshair;
-}
+        /* --- ส่วนของ Stopwatch --- */
+        .stopwatch-container {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
 
-/* กล่องเลือกสี */
-.color-panel {
-    position: fixed;
-    bottom:20px;
-    left:20px;
-    background:rgba(255,255,255,0.95);
-    padding:15px;
-    border-radius:15px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.1);
-    z-index:1000;
-    font-size:14px;
-}
-.color-panel input {
-    width:60px;
-}
-button {
-    margin-top:8px;
-    padding:6px 10px;
-    border:none;
-    border-radius:8px;
-    cursor:pointer;
-}
-</style>
+        #stopwatch-display {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: #0078d4; /* สีฟ้าสไตล์ Microsoft */
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-stop { background-color: #dc3545; color: white; }
+        .btn-reset { background-color: #6c757d; color: white; }
+        .btn:hover { opacity: 0.8; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        #fireworks-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+            z-index: -1; 
+        }
+
+        .content { 
+            position: relative;
+            padding: 60px 50px; 
+            z-index: 1;
+        }
+    </style>
 </head>
-
 <body>
 
-<canvas id="fireworks-canvas"></canvas>
-<canvas id="draw-canvas"></canvas>
+    <canvas id="fireworks-canvas"></canvas>
 
-<div class="fixed-clock">
-    <div id="clock"></div>
-    <div id="date"></div>
-</div>
+    <div class="fixed-clock">
+        <div id="clock">00:00:00</div>
+        <div id="date">01-JAN-26</div>
 
-<div class="color-panel">
-    <div>R: <input type="number" id="r" min="0" max="255" value="0"></div>
-    <div>G: <input type="number" id="g" min="0" max="255" value="0"></div>
-    <div>B: <input type="number" id="b" min="0" max="255" value="0"></div>
-    <button onclick="clearCanvas()">ล้างภาพ</button>
-</div>
+        <div class="stopwatch-container">
+            <div id="stopwatch-display">00:00.00</div>
+            <div class="controls">
+                <button class="btn btn-start" onclick="startStopwatch()">Start</button>
+                <button class="btn btn-stop" onclick="stopStopwatch()">Stop</button>
+                <button class="btn btn-reset" onclick="resetStopwatch()">Reset</button>
+            </div>
+        </div>
+    </div>
 
-<script>
-/* ---------- ตั้งค่า Canvas ---------- */
-const fwCanvas = document.getElementById('fireworks-canvas');
-const fwCtx = fwCanvas.getContext('2d');
+    <div class="content">
+        <h1>Aptos Dashboard</h1>
+        <p>นาฬิกาจะจุดพลุฉลองทุกๆ ต้นชั่วโมง หรือคลิกที่ว่างเพื่อจุดพลุเอง</p>
+    </div>
 
-const drawCanvas = document.getElementById('draw-canvas');
-const drawCtx = drawCanvas.getContext('2d');
+    <script>
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        const clockElement = document.getElementById('clock');
+        const dateElement = document.getElementById('date');
+        let particles = [];
 
-function resize(){
-    fwCanvas.width = drawCanvas.width = window.innerWidth;
-    fwCanvas.height = drawCanvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
 
-/* ---------- ระบบวาด ---------- */
-let drawing = false;
+        // --- ระบบพลุ (เหมือนเดิม) ---
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.velocity = { x: (Math.random() - 0.5) * 8, y: (Math.random() - 0.5) * 8 };
+                this.alpha = 1; this.friction = 0.95; this.gravity = 0.05;
+            }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2); ctx.fillStyle = this.color;
+                ctx.fill(); ctx.restore();
+            }
+            update() {
+                this.velocity.x *= this.friction; this.velocity.y *= this.friction;
+                this.velocity.y += this.gravity; this.x += this.velocity.x; this.y += this.velocity.y;
+                this.alpha -= 0.01;
+            }
+        }
 
-function getColor(){
-    const r = document.getElementById('r').value;
-    const g = document.getElementById('g').value;
-    const b = document.getElementById('b').value;
-    return `rgb(${r},${g},${b})`;
-}
+        function createFirework(x, y) {
+            const posX = x || Math.random() * canvas.width;
+            const posY = y || Math.random() * (canvas.height * 0.4) + (canvas.height * 0.1);
+            const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+            for (let i = 0; i < 40; i++) particles.push(new Particle(posX, posY, color));
+        }
 
-drawCanvas.addEventListener('mousedown', (e)=>{
-    drawing = true;
-    drawCtx.beginPath();
-    drawCtx.moveTo(e.clientX, e.clientY);
-});
-drawCanvas.addEventListener('mousemove', (e)=>{
-    if(!drawing) return;
-    drawCtx.strokeStyle = getColor();
-    drawCtx.lineWidth = 3;
-    drawCtx.lineCap = "round";
-    drawCtx.lineTo(e.clientX, e.clientY);
-    drawCtx.stroke();
-});
-drawCanvas.addEventListener('mouseup', ()=> drawing=false);
-drawCanvas.addEventListener('mouseleave', ()=> drawing=false);
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(); particles[i].draw();
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
 
-function clearCanvas(){
-    drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
-}
+        // --- ระบบนาฬิกาปกติ ---
+        function updateClock() {
+            const now = new Date();
+            clockElement.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
+            
+            const day = now.getDate().toString().padStart(2, '0');
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const mmm = months[now.getMonth()];
+            const yy = now.getFullYear().toString().slice(-2);
+            dateElement.textContent = `${day}-${mmm}-${yy}`;
 
-/* ---------- ระบบพลุ ---------- */
-let particles = [];
+            if (now.getMinutes() === 0 && now.getSeconds() === 0) {
+                for(let i=0; i<8; i++) setTimeout(createFirework, i * 400);
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
 
-class Particle{
-    constructor(x,y,color){
-        this.x=x;
-        this.y=y;
-        this.color=color;
-        this.velocity={
-            x:(Math.random()-0.5)*8,
-            y:(Math.random()-0.5)*8
-        };
-        this.alpha=1;
-        this.friction=0.95;
-        this.gravity=0.05;
-    }
-    draw(){
-        fwCtx.save();
-        fwCtx.globalAlpha=this.alpha;
-        fwCtx.beginPath();
-        fwCtx.arc(this.x,this.y,2,0,Math.PI*2);
-        fwCtx.fillStyle=this.color;
-        fwCtx.fill();
-        fwCtx.restore();
-    }
-    update(){
-        this.velocity.x*=this.friction;
-        this.velocity.y*=this.friction;
-        this.velocity.y+=this.gravity;
-        this.x+=this.velocity.x;
-        this.y+=this.velocity.y;
-        this.alpha-=0.01;
-    }
-}
+        // --- ระบบนาฬิกาจับเวลา (Stopwatch Logic) ---
+        let startTime;
+        let elapsedTime = 0;
+        let timerInterval;
 
-function createFirework(){
-    const x=Math.random()*fwCanvas.width;
-    const y=Math.random()*fwCanvas.height*0.5;
-    const color=`hsl(${Math.random()*360},70%,50%)`;
-    for(let i=0;i<40;i++){
-        particles.push(new Particle(x,y,color));
-    }
-}
+        function timeToString(time) {
+            let diffInHrs = time / 3600000;
+            let hh = Math.floor(diffInHrs);
 
-function animate(){
-    fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
-    for(let i=particles.length-1;i>=0;i--){
-        particles[i].update();
-        particles[i].draw();
-        if(particles[i].alpha<=0) particles.splice(i,1);
-    }
-    requestAnimationFrame(animate);
-}
-animate();
+            let diffInMin = (diffInHrs - hh) * 60;
+            let mm = Math.floor(diffInMin);
 
-/* ---------- ระบบนาฬิกา ---------- */
-const clockEl=document.getElementById('clock');
-const dateEl=document.getElementById('date');
+            let diffInSec = (diffInMin - mm) * 60;
+            let ss = Math.floor(diffInSec);
 
-function updateClock(){
-    const now=new Date();
-    const h=String(now.getHours()).padStart(2,'0');
-    const m=String(now.getMinutes()).padStart(2,'0');
-    const s=String(now.getSeconds()).padStart(2,'0');
-    clockEl.textContent=`${h}:${m}:${s}`;
+            let diffInMs = (diffInSec - ss) * 100;
+            let ms = Math.floor(diffInMs);
 
-    const day=String(now.getDate()).padStart(2,'0');
-    const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const mmm=months[now.getMonth()];
-    const yy=now.getFullYear().toString().slice(-2);
-    dateEl.textContent=`${day}-${mmm}-${yy}`;
+            let formattedMM = mm.toString().padStart(2, "0");
+            let formattedSS = ss.toString().padStart(2, "0");
+            let formattedMS = ms.toString().padStart(2, "0");
 
-    if(m==="00" && s==="00"){
-        for(let i=0;i<8;i++) setTimeout(createFirework,i*400);
-    }
-}
+            return `${formattedMM}:${formattedSS}.${formattedMS}`;
+        }
 
-setInterval(updateClock,1000);
-updateClock();
-</script>
+        function startStopwatch() {
+            if (timerInterval) return; // กันการกดซ้ำ
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(function printTime() {
+                elapsedTime = Date.now() - startTime;
+                document.getElementById("stopwatch-display").innerHTML = timeToString(elapsedTime);
+            }, 10);
+        }
 
+        function stopStopwatch() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function resetStopwatch() {
+            stopStopwatch();
+            elapsedTime = 0;
+            document.getElementById("stopwatch-display").innerHTML = "00:00.00";
+        }
+
+        // คลิกเพื่อจุดพลุ
+        window.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('.fixed-clock')) { // ไม่จุดพลุถ้ากดโดนปุ่ม
+                createFirework(e.clientX, e.clientY);
+            }
+        });
+    </script>
 </body>
 </html>
